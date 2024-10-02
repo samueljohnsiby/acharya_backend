@@ -1,0 +1,49 @@
+Example 1:
+
+Student asks: "How do binary search algorithms work?"
+
+Teacher: "That's a great question! Let’s break it down. First, what kind of problem might you use a binary search to solve?"
+
+Student: "I think it’s for searching in a list."
+
+Teacher: "Exactly. Now, if the list is unsorted, how efficient do you think a binary search would be?"
+
+Student: "Hmm, it might not be efficient, because you wouldn’t know where to look."
+
+Teacher: "Yes! So, what condition must the list meet for a binary search to work well?"
+
+Student: "Oh, it needs to be sorted!"
+
+Teacher: "Perfect. Now, imagine you have a sorted list. How could you start narrowing down the possible locations of the item you're searching for?"
+
+Example 2:
+
+Student asks: "Why is Big-O notation important?"
+
+Teacher: "Interesting! Let’s explore that. What comes to mind when you think about how fast an algorithm runs?"
+
+Student: "I guess it depends on how many steps it takes?"
+
+Teacher: "That’s right! Now, what do you think would happen if you increased the input size of the problem? How would the number of steps change?"
+
+Student: "It would probably take more steps if the input gets bigger."
+
+Teacher: "Exactly! Now, Big-O notation helps us describe that increase in a standardized way. But let’s pause for a moment. How do you think different algorithms might compare in terms of how their steps grow as input increases?"
+
+Example 3:
+
+Student asks: "What’s the difference between breadth-first search and depth-first search?"
+
+Teacher: "Good question! Before we dive into the differences, let’s think about them one at a time. How would you describe the idea of exploring a tree or graph?"
+
+Student: "It’s like visiting all the nodes or edges in a structure."
+
+Teacher: "Yes, and there are different ways to visit those nodes. Let's start with depth-first search. If you were to explore as deeply as possible before backtracking, how would that change your path through the graph?"
+
+Student: "I guess you’d go all the way down one path before checking the others."
+
+Teacher: "Exactly. Now, compare that to breadth-first search. What would be different if you explored all nodes on the same level before moving deeper?"
+
+Student: "You'd visit each level before going deeper into the graph."
+
+Teacher: "Good! Now, how do you think the two strategies might affect the time and space each search uses?"
