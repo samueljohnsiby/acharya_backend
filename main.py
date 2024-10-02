@@ -11,19 +11,17 @@ from fastapi.security import OAuth2PasswordBearer
 import firebase_admin
 from firebase_admin import auth, credentials, firestore
 import json
-
-# Load environment variables from .env file
+# .env file
 load_dotenv()
 
 app = FastAPI()
 
-# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:4200",
         "https://socraticbot-4bc8c.web.app",
-    ],  # Replace with your Angular app's URL
+        ],  # Replace with your Angular app's URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,11 +30,17 @@ app.add_middleware(
 # Configure the Google AI SDK with the API key
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
+# secrets_handler = Secrets()
+# secrets_handler.create_file()
 # Dictionary to store chat sessions for different users or clients
 chat_sessions = {}
 
+
 # Initialize Firebase Admin SDK
+# cred = credentials.Certificate('serviceAccount.json')
+# content = json.load(os.getenv('SERVICE_ACCOUNT_JSON'))
 cred = credentials.ApplicationDefault()
+
 firebase_admin.initialize_app(cred)
 
 # Firestore client
@@ -52,13 +56,16 @@ class Message(BaseModel):
 api_key_header = APIKeyHeader(name="X-API-Key")
 
 # Dependency for API key verification
+
 async def get_api_key(x_api_key: str = Depends(api_key_header)):
-    stored_api_key = os.getenv("API_KEY")
-    if x_api_key != stored_api_key:
-        raise HTTPException(status_code=403, detail="Invalid API Key")
+    try:
+        decoded_token = auth.verify_id_token(x_api_key)
+        uid = decoded_token['uid']
+    except Exception as e:  # Capture the specific exception if known
+        raise HTTPException(status_code=401, detail="Invalid token") from e
     return x_api_key
 
-# Function to read file content
+
 async def read_file(file_path: str) -> str:
     try:
         with open(file_path, 'r') as file:
@@ -75,21 +82,29 @@ class UserChatData(BaseModel):
     prompt: str
     session_id: str
 
-# Store chat data in Firestore
 async def store_chat_data(user_data: UserChatData):
     try:
+        # Reference to the document for the given user_id
         doc_ref = db.collection('user_chats').document(user_data.user_id)
+        
+        # Retrieve the existing document for the user (if any)
         doc = doc_ref.get()
         
         if doc.exists:
+            # If the document exists, update it by appending the new session and prompt data
             existing_data = doc.to_dict()
+            
+            # Append new session and prompt to the existing data
             updated_sessions = existing_data.get("sessions", [])
             updated_sessions.append({
                 "session_id": user_data.session_id,
                 "prompt": user_data.prompt
             })
+            
+            # Update the document with the new session data
             doc_ref.update({"sessions": updated_sessions})
         else:
+            # If the document does not exist, create a new document for the user
             doc_ref.set({
                 "user_id": user_data.user_id,
                 "sessions": [{
@@ -102,11 +117,11 @@ async def store_chat_data(user_data: UserChatData):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error storing chat data: {e}")
-
 # Chat endpoint with API key verification
 @app.post("/chat")
 async def chat(message: Message, api_key: str = Depends(get_api_key)):
     try:
+        # Create the generation configuration
         generation_config = {
             "temperature": 0.0,
             "top_p": 0.95,
@@ -117,11 +132,13 @@ async def chat(message: Message, api_key: str = Depends(get_api_key)):
 
         content = await read_file('example.txt')
 
+        # Define safety settings
         safety_settings = {
             HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
         }
 
+        # Check if session_id exists, else create a new session
         if message.session_id and message.session_id in chat_sessions:
             chat_session = chat_sessions[message.session_id]
         else:
@@ -139,10 +156,14 @@ async def chat(message: Message, api_key: str = Depends(get_api_key)):
                 safety_settings=safety_settings
             )
             chat_session = model.start_chat()
-            chat_sessions[message.session_id] = chat_session
+            session_id = str(len(chat_sessions) + 1)
+            chat_sessions[session_id] = chat_session
+            message.session_id = session_id
 
+        # Send the user's prompt to the chat session
         response = chat_session.send_message(message.prompt)
 
+        # Store the chat data in Firestore
         user_data = UserChatData(
             user_id=message.user_id,
             prompt=message.prompt,
@@ -150,15 +171,16 @@ async def chat(message: Message, api_key: str = Depends(get_api_key)):
         )
         await store_chat_data(user_data)
 
+        # Return the response text along with the session ID for future requests
         return {"response": response.text, "session_id": message.session_id}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # OAuth2 scheme for the token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-# Login endpoint for token verification
 @app.post("/login")
 async def login(token: str = Depends(oauth2_scheme)):
     try:
@@ -168,7 +190,8 @@ async def login(token: str = Depends(oauth2_scheme)):
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# User signup endpoint
+
+# Define the UserCreate model for signup
 class UserCreate(BaseModel):
     email: str
     password: str
