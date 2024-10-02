@@ -35,7 +35,8 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 # Dictionary to store chat sessions for different users or clients
 chat_sessions = {}
 
-
+# OAuth2 scheme for the token
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 # Initialize Firebase Admin SDK
 # cred = credentials.Certificate('serviceAccount.json')
 # content = json.load(os.getenv('SERVICE_ACCOUNT_JSON'))
@@ -178,8 +179,7 @@ async def chat(message: Message, api_key: str = Depends(get_api_key)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# OAuth2 scheme for the token
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
 
 @app.post("/login")
 async def login(token: str = Depends(oauth2_scheme)):
